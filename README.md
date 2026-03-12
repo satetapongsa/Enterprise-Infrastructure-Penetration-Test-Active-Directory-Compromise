@@ -19,9 +19,43 @@ The target infrastructure consists of three primary departments, segmented by Ci
 * **VLAN 20 (ACCOUNT):** `10.10.20.0/24` (Internal only)
 * **VLAN 30 (IT):** `10.10.30.0/24` (Highly restricted)
 * **Core Routing:** Handled by a Cisco Layer 3 switch with misconfigured Access Control Lists (ACLs) allowing unintended cross-VLAN traffic.
+* ```mermaid
+graph TD
+    classDef attacker fill:#ff4d4d,stroke:#333,stroke-width:2px,color:#fff;
+    classDef dmz fill:#ffcc00,stroke:#333,stroke-width:2px;
+    classDef internal fill:#66ccff,stroke:#333,stroke-width:2px;
+    classDef core fill:#99cc99,stroke:#333,stroke-width:2px;
+    classDef switch fill:#d9d9d9,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
 
----
+    Attacker((Attacker / Internet)):::attacker
+    Firewall[Edge Firewall]
+    CoreSwitch{Cisco Core L3 Switch<br>Misconfigured ACLs}:::switch
 
+    Attacker -->|1. Initial Access: Port 8080| Firewall
+    Firewall --> CoreSwitch
+
+    subgraph VLAN 10: SERVICE
+        Helpdesk[Helpdesk Server<br>IP: 10.10.10.10<br>Vuln: Insecure Deserialization]:::dmz
+    end
+
+    subgraph VLAN 20: ACCOUNT
+        FileShare[SMB File Share<br>IP: 10.10.20.15<br>Vuln: No SMB Signing]:::internal
+        AdminPC[Admin Workstation<br>IP: 10.10.20.50]:::internal
+    end
+
+    subgraph VLAN 30: IT
+        DC[Domain Controller<br>IP: 10.10.30.5<br>Vuln: AD CS Web Enrollment]:::core
+    end
+
+    CoreSwitch <-->|Routing| Helpdesk
+    CoreSwitch <-->|Routing| FileShare
+    CoreSwitch <-->|Routing| AdminPC
+    CoreSwitch <-->|Routing| DC
+
+    Helpdesk -.->|2. Pivoting / Proxychains| FileShare
+    FileShare -.->|3. SMB Relay & Cred Dump| DC
+    DC -.->|4. Domain Admin Compromised| Attacker
+    
 ## ⚔️ Attack Kill Chain
 
 ### 1. Initial Access (SERVICE Network)
